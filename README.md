@@ -1,125 +1,150 @@
-# Advantec - Ecosistema Modular de Órdenes (Laravel 12 + Node.js)
+# Advantec
 
-Este repositorio contiene una arquitectura distribuida y desacoplada para el procesamiento asíncrono de órdenes de compra. Está diseñado siguiendo criterios de alta disponibilidad, tolerancia a fallos y monitoreo en tiempo real.
+Aplicación de procesamiento asíncrono de órdenes de compra con:
 
-El ecosistema está contenerizado con Docker y consta de:
+- API en Laravel 12
+- Worker de colas dedicado
+- MySQL
+- Microservicio Node.js de despacho simulado
+- Panel Livewire para monitoreo en tiempo real
 
-- Un backend principal en Laravel 12 (API REST).
-- Un trabajador de colas (Queue Worker) para el procesamiento asíncrono.
-- Una base de datos MySQL.
-- Un microservicio satélite en Node.js que simula un sistema externo de logística.
+## Arquitectura
 
-## Arquitectura del sistema
+Flujo principal:
 
-El flujo de datos sigue un patrón asíncrono no bloqueante:
+1. La API recibe una orden (`POST /api/v1/orders`).
+2. La orden se guarda con estado inicial `pending`.
+3. Se despacha un job a la cola (`ProcessOrderDispatch`).
+4. El worker procesa la cola y llama al servicio Node (`/api/v1/dispatch`).
+5. La orden cambia de estado (`processing`, `processed` o `failed`) y se refleja en el panel Livewire.
 
-- **Capa HTTP (API REST)**: Un endpoint `POST /api/v1/orders` recibe el payload de la compra y valida los datos mediante un Form Request.
-- **Capa de datos y dominio**: La orden se persiste en MySQL con estado `pending`. Se utiliza un Backed Enum de PHP 8+ para garantizar la integridad de los estados.
-- **Capa asíncrona (colas)**: Se despacha un Job `ProcessOrderDispatch` a la cola de la base de datos, liberando la conexión HTTP y retornando una respuesta `201 Created` rápidamente.
-- **Capa de integración (gateway)**: El Queue Worker procesa la tarea, cambia el estado a `processing` e invoca de forma resiliente (reintentos y backoff) al microservicio Node.js mediante el DNS interno de Docker.
-- **Capa de monitoreo**: Un dashboard reactivo construido con Livewire consume los cambios de estado en segundo plano mediante polling asíncrono cada 2 segundos.
+## Requisitos
 
-## Requisitos previos
-
+- Docker Desktop
 - Git
-- Docker Desktop (recomendado, con soporte WSL2 en Windows)
-- Composer (para instalar dependencias PHP)
 
-## Inicio rápido y despliegue
+Opcional (solo si quieres ejecutar comandos fuera de contenedores):
 
-Sigue estos pasos para levantar la infraestructura:
+- PHP 8.2+
+- Composer
 
-1. Clonar el repositorio e ingresar al directorio:
+## Puertos y servicios
+
+Según `docker-compose.yml`:
+
+- App Laravel (host): `http://127.0.0.1:8080`
+- MySQL (host): `127.0.0.1:3307`
+- Node dispatch mock (host): `http://127.0.0.1:3000`
+
+Contenedores esperados:
+
+- `laravel_app`
+- `laravel_queue_worker`
+- `mysql_db`
+- `node_dispatch_service`
+
+## Setup rápido (recomendado para evaluador)
+
+1. Clonar:
 
 ```bash
 git clone https://github.com/sosaheri/advantec.git
 cd advantec
 ```
 
-2. Instalar dependencias PHP (en el host o dentro de un contenedor según su preferencia):
-
-```bash
-composer install
-composer require livewire/livewire
-```
-
-3. Configurar el entorno:
+2. Crear entorno:
 
 ```bash
 cp .env.example .env
-# Asegúrese de que QUEUE_CONNECTION=database si desea usar colas de base de datos
 ```
 
-4. Levantar servicios con Docker (opcional):
+3. Ajustar DB para Docker en `.env`:
+
+```dotenv
+DB_CONNECTION=mysql
+DB_HOST=database
+DB_PORT=3306
+DB_DATABASE=laravel
+DB_USERNAME=root
+DB_PASSWORD=root
+QUEUE_CONNECTION=database
+NODE_DISPATCH_SERVICE_URL=http://mock-dispatch-service:3000
+```
+
+4. Levantar servicios:
 
 ```bash
-docker compose up -d
+docker compose up -d --build
 ```
 
-5. Inicializar la aplicación y la base de datos:
-
-```bash
-php artisan key:generate
-php artisan migrate
-```
-
-> Si usa Docker, puede ejecutar `php artisan` dentro del contenedor `app`:
+5. Inicializar app:
 
 ```bash
 docker compose exec app php artisan key:generate
-docker compose exec app php artisan migrate
+docker compose exec app php artisan migrate --force
+docker compose exec app php artisan optimize:clear
 ```
 
-## Servicios esperados
+## Verificación mínima
 
-Tras levantar los contenedores debería encontrar los siguientes servicios en `docker ps`:
-
-- `laravel_app` (puerto 8000): servidor web de la aplicación y API REST.
-- `laravel_queue_worker`: trabajador en segundo plano que procesa colas.
-- `mysql_db` (puerto 3306): base de datos relacional.
-- `node_dispatch_service` (puerto 3000): microservicio Node.js de simulación de despacho.
-
-## Pruebas y simulaciones
-
-### Opción A — Prueba de humo (curl):
+1. Ver contenedores:
 
 ```bash
-curl -X POST http://127.0.0.1:8000/api/v1/orders \
+docker compose ps
+```
+
+2. Ver worker activo:
+
+```bash
+docker compose logs -f queue-worker
+```
+
+3. Abrir panel:
+
+```text
+http://127.0.0.1:8080
+```
+
+## Pruebas funcionales
+
+### 1) Prueba API 
+
+```bash
+curl -X POST http://127.0.0.1:8080/api/v1/orders \
   -H "Content-Type: application/json" \
-  -d '{"customer_name": "Heriberto Sosa", "customer_email": "heriberto@test.com", "total_amount": 149.99}'
+  -d '{"customer_name":"Test User","customer_email":"test@example.com","total_amount":149.99}'
 ```
 
-### Opción B — Simulador de carga (comando Artisan personalizado):
+Resultado esperado: respuesta `201` y la orden aparece en el panel.
+
+### 2) Prueba desde UI 
+
+En el panel principal hay un botón `Despachar aleatorio` al lado de `Escuchando cambios...`.
+
+- Al hacer clic, ejecuta internamente el comando `ecosystem:simulate` con una cantidad aleatoria entre `1` y `50` órdenes.
+- El panel se refresca automáticamente cada 2 segundos y muestra los cambios de estado.
+
+### 3) Simulación por consola
 
 ```bash
-# Inserta 30 órdenes en paralelo (ejemplo)
 docker compose exec app php artisan ecosystem:simulate 30
 ```
 
-## Comprobaciones rápidas
+## Solución rápida de problemas
 
-- Ver versión de PHP:
-
-```bash
-php -v
-```
-
-- Listar rutas (verificar arranque de la app):
+Si no se reflejan cambios en la UI:
 
 ```bash
-php artisan route:list
+docker compose exec app php artisan view:clear
+docker compose exec app php artisan cache:clear
+docker compose exec app php artisan optimize:clear
+docker compose restart app queue-worker
 ```
 
-## Contribuciones
+Si el worker no procesa:
 
-1. Cree una rama con formato `feat/descripcion` o `fix/descripcion`.
-2. Haga commits claros y pequeños.
-3. Abra un Pull Request hacia `main`.
+```bash
+docker compose up -d queue-worker
+docker compose logs -f queue-worker
+```
 
-## Licencia
-
-No se añadió una licencia por defecto. Añada un archivo `LICENSE` (por ejemplo MIT) si desea publicar el proyecto con términos claros.
-
----
-
-Si quiere, puedo añadir un archivo `.gitignore` básico y una `LICENSE` (MIT) y commitearlos.

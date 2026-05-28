@@ -1,12 +1,31 @@
 <div wire:poll.2s>
+    @if($feedbackMessage)
+        <div style="margin-bottom: 12px; padding: 10px 12px; border-radius: 6px; font-size: 13px; background-color: {{ $isErrorMessage ? '#fed7d7' : '#c6f6d5' }}; color: {{ $isErrorMessage ? '#9b2c2c' : '#22543d' }};">
+            {{ $feedbackMessage }}
+        </div>
+    @endif
+
     <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
         <div>
             <h2 style="margin: 0; color: #1a202c;">Panel de Control y Monitoreo</h2>
             <p style="margin: 5px 0 0 0; color: #718096; font-size: 14px;">Las órdenes se actualizan automáticamente cada 2 segundos.</p>
         </div>
-        <div style="display: flex; align-items: center; font-size: 13px; color: #4a5568;">
-            <span style="height: 10px; width: 10px; background-color: #48bb78; border-radius: 50%; display: inline-block; margin-right: 8px;"></span>
-            Escuchando cambios...
+        <div style="display: flex; align-items: center; gap: 12px; font-size: 13px; color: #4a5568;">
+            <div style="display: flex; align-items: center;">
+                <span style="height: 10px; width: 10px; background-color: #48bb78; border-radius: 50%; display: inline-block; margin-right: 8px;"></span>
+                Escuchando cambios...
+            </div>
+
+            <button
+                type="button"
+                wire:click="dispatchQuickOrder"
+                wire:loading.attr="disabled"
+                wire:target="dispatchQuickOrder"
+                style="background-color: #2563eb; color: #ffffff; border: 0; border-radius: 6px; padding: 8px 12px; font-size: 12px; font-weight: 600; cursor: pointer;"
+            >
+                <span wire:loading.remove wire:target="dispatchQuickOrder">Despachar aleatorio</span>
+                <span wire:loading wire:target="dispatchQuickOrder">Despachando...</span>
+            </button>
         </div>
     </div>
 
@@ -69,4 +88,42 @@
             </tbody>
         </table>
     </div>
+
+    @if($orders->hasPages())
+        <div style="margin-top: 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <div style="font-size: 12px; color: #4a5568;">
+                Mostrando {{ $orders->firstItem() }}-{{ $orders->lastItem() }} de {{ $orders->total() }} órdenes
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                <button
+                    type="button"
+                    wire:click="previousPage"
+                    @disabled($orders->onFirstPage())
+                    style="border: 1px solid #cbd5e0; background-color: {{ $orders->onFirstPage() ? '#edf2f7' : '#ffffff' }}; color: #2d3748; border-radius: 6px; padding: 6px 10px; font-size: 12px; cursor: {{ $orders->onFirstPage() ? 'not-allowed' : 'pointer' }};"
+                >
+                    Anterior
+                </button>
+
+                @for($page = 1; $page <= $orders->lastPage(); $page++)
+                    <button
+                        type="button"
+                        wire:click="gotoPage({{ $page }})"
+                        style="border: 1px solid {{ $orders->currentPage() === $page ? '#2563eb' : '#cbd5e0' }}; background-color: {{ $orders->currentPage() === $page ? '#2563eb' : '#ffffff' }}; color: {{ $orders->currentPage() === $page ? '#ffffff' : '#2d3748' }}; border-radius: 6px; min-width: 34px; height: 34px; font-size: 12px; font-weight: 600; cursor: pointer;"
+                    >
+                        {{ $page }}
+                    </button>
+                @endfor
+
+                <button
+                    type="button"
+                    wire:click="nextPage"
+                    @disabled(!$orders->hasMorePages())
+                    style="border: 1px solid #cbd5e0; background-color: {{ $orders->hasMorePages() ? '#ffffff' : '#edf2f7' }}; color: #2d3748; border-radius: 6px; padding: 6px 10px; font-size: 12px; cursor: {{ $orders->hasMorePages() ? 'pointer' : 'not-allowed' }};"
+                >
+                    Siguiente
+                </button>
+            </div>
+        </div>
+    @endif
 </div>
