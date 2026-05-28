@@ -43,7 +43,7 @@ Contenedores esperados:
 - `mysql_db`
 - `node_dispatch_service`
 
-## Setup rápido (recomendado para evaluador)
+## Setup rápido
 
 1. Clonar:
 
