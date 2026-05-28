@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'dispatch' => [
+        'url' => env('NODE_DISPATCH_SERVICE_URL', 'http://mock-dispatch-service:3000'),
+    ],
+
 ];
