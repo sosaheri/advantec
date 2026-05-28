@@ -42,7 +42,7 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD:-root}
       MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - dbdata:/var/lib/mysql
     networks:
