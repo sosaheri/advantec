@@ -1,11 +1,11 @@
 <div wire:poll.2s>
     <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
         <div>
-            <h2 style="margin: 0; color: #1a202c;">📊 Panel de Control y Monitoreo</h2>
+            <h2 style="margin: 0; color: #1a202c;">Panel de Control y Monitoreo</h2>
             <p style="margin: 5px 0 0 0; color: #718096; font-size: 14px;">Las órdenes se actualizan automáticamente cada 2 segundos.</p>
         </div>
         <div style="display: flex; align-items: center; font-size: 13px; color: #4a5568;">
-            <span style="height: 10px; width: 10px; background-color: #48bb78; border-radius: 50%; display: inline-block; margin-right: 8px; animate: pulse 2s infinite;"></span>
+            <span style="height: 10px; width: 10px; background-color: #48bb78; border-radius: 50%; display: inline-block; margin-right: 8px;"></span>
             Escuchando cambios...
         </div>
     </div>
@@ -50,10 +50,10 @@
                         <td style="padding: 12px 16px; font-size: 12px;">
                             @if($order->status->value === 'failed')
                                 <span style="color: #e53e3e; font-weight: 500;" title="{{ $order->failure_reason }}">
-                                    ⚠️ {{ Str::limit($order->failure_reason, 40) }}
+                                    {{ Str::limit($order->failure_reason, 40) }}
                                 </span>
                             @elseif($order->status->value === 'processed')
-                                <span style="color: #38a169; font-weight: 500;">✅ Sincronizado con Node.js</span>
+                                <span style="color: #38a169; font-weight: 500;">Sincronizado con Node.js</span>
                             @else
                                 <span style="color: #a0aec0;">Esperando acción...</span>
                             @endif
