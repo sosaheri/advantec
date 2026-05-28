@@ -1,6 +1,8 @@
 # Advantec
 
-Aplicación de procesamiento asíncrono de órdenes de compra con:
+Aplicación de procesamiento asíncrono de órdenes de compra
+
+Incluye:
 
 - API en Laravel 12
 - Worker de colas dedicado
@@ -20,13 +22,11 @@ Flujo principal:
 
 ## Requisitos
 
-- Docker Desktop
 - Git
-
-Opcional (solo si quieres ejecutar comandos fuera de contenedores):
-
 - PHP 8.2+
 - Composer
+- Node.js 18+ (obligatorio en modo local/XAMPP)
+- Docker Desktop o entorno local(XAMPP)
 
 ## Puertos y servicios
 
@@ -77,6 +77,8 @@ NODE_DISPATCH_SERVICE_URL=http://mock-dispatch-service:3000
 docker compose up -d --build
 ```
 
+Esto también levanta Node automáticamente en el contenedor `node_dispatch_service`.
+
 5. Inicializar app:
 
 ```bash
@@ -84,6 +86,116 @@ docker compose exec app php artisan key:generate
 docker compose exec app php artisan migrate --force
 docker compose exec app php artisan optimize:clear
 ```
+
+## Como levantar Node (mock de despacho)
+
+### Opcion Docker
+
+Node se levanta automaticamente con `docker compose up -d --build`.
+
+Para verificarlo:
+
+```bash
+docker compose ps
+docker compose logs -f mock-dispatch-service
+```
+
+### Opcion local/XAMPP
+
+En una terminal aparte:
+
+```bash
+cd mock-dispatch-service
+npm install
+node server.js
+```
+
+Dejalo corriendo mientras pruebas la app Laravel y el worker.
+
+### Verificacion del endpoint Node
+
+```bash
+curl -X POST http://127.0.0.1:3000/api/v1/dispatch \
+  -H "Content-Type: application/json" \
+  -d '{"order_id":1,"amount":149.99}'
+```
+
+Si responde JSON con `status: success`, Node esta activo correctamente.
+
+## Ejecución local con XAMPP
+
+Si quieres correrlo sin Docker en Windows
+
+### Variables de entorno recomendadas
+
+En `.env` usa estos valores:
+
+```dotenv
+APP_URL=http://127.0.0.1:8000
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=advantec
+DB_USERNAME=root
+DB_PASSWORD=
+QUEUE_CONNECTION=database
+SESSION_DRIVER=database
+CACHE_STORE=database
+NODE_DISPATCH_SERVICE_URL=http://127.0.0.1:3000
+```
+
+
+### Pasos locales con XAMPP
+
+1. Instala y abre XAMPP.
+2. Enciende el servicio MySQL desde el panel de XAMPP.
+3. Crea la base de datos `advantec` en phpMyAdmin o con el cliente de MySQL.
+4. Instala dependencias:
+
+```bash
+composer install
+npm install
+```
+
+5. Copia el entorno:
+
+```bash
+cp .env.example .env
+```
+
+6. Genera la clave y ejecuta migraciones:
+
+```bash
+php artisan key:generate
+php artisan migrate --force
+```
+
+7. Inicia la app con PHP de XAMPP:
+
+```bash
+C:\xampp\php\php.exe artisan serve --host=127.0.0.1 --port=8000
+```
+
+8. Inicia el worker en otra terminal:
+
+```bash
+C:\xampp\php\php.exe artisan queue:work --tries=3 --backoff=15
+```
+
+9. Inicia Node (mock de despacho) en otra terminal:
+
+```bash
+cd mock-dispatch-service
+npm install
+node server.js
+```
+
+10. Si usas Vite, arráncalo también:
+
+```bash
+npm run dev
+```
+
 
 ## Verificación mínima
 
