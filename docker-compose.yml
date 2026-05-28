@@ -1,0 +1,68 @@
+services:
+  # (Orders API)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: laravel-mini-service-app
+    container_name: laravel_app
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      - database
+    networks:
+      - app-network
+
+  # workers
+  queue-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: laravel_queue_worker
+    restart: unless-stopped
+    command: php artisan queue:work --tries=3 --backoff=15
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      - database
+      - app
+    networks:
+      - app-network
+
+  database:
+    image: mysql:8.0
+    container_name: mysql_db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-laravel}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-root}
+      MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+    ports:
+      - "3306:3306"
+    volumes:
+      - dbdata:/var/lib/mysql
+    networks:
+      - app-network
+
+  # external API
+  mock-dispatch-service:
+    build:
+      context: ./mock-dispatch-service
+    container_name: node_dispatch_service
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  dbdata:
+    driver: local
